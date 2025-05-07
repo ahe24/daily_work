@@ -35,6 +35,7 @@ logs/
 # Misc
 coverage/
 *.tgz
+client/package-lock.json
 
 # Server
 server/config/config.json
