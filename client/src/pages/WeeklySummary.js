@@ -14,8 +14,43 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { format, addWeeks, startOfWeek, endOfWeek, addDays } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 const WeeklySummary = () => {
+  const handleExportExcel = () => {
+    // plans 배열을 엑셀 데이터로 가공
+    const data = plans.map(plan => ({
+      날짜: plan.date,
+      업무내용: plan.content,
+      결과: plan.doResult,
+      Check: plan.check,
+      Action: plan.action,
+      상태: plan.status
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    // 셀 너비 자동 조정
+    const colNames = Object.keys(data[0] || {});
+    ws['!cols'] = colNames.map(key => {
+      const maxLen = Math.max(
+        key.length,
+        ...data.map(row => (row[key] ? String(row[key]).length : 0))
+      );
+      // 한글은 2배, 영문/숫자는 1배 정도로 가정
+      const width = Math.ceil(maxLen * 1.7);
+      return { wch: width < 10 ? 10 : width };
+    });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'WeeklySummary');
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    // 파일명에 날짜범위 포함
+    const startStr = format(weekStart, 'yyyy-MM-dd');
+    const endStr = format(weekEnd, 'yyyy-MM-dd');
+    const filename = `weekly-summary_${startStr}~${endStr}.xlsx`;
+    saveAs(blob, filename);
+  };
   const navigate = useNavigate();
   const [selectedWeek, setSelectedWeek] = useState(0); // 0: this week, -1: prev, 1: next
   const [plans, setPlans] = useState([]);
@@ -70,9 +105,12 @@ const WeeklySummary = () => {
               <Button variant="outlined" color="primary" onClick={() => navigate('/daily')} sx={{ mr: 2 }}>
                 일일 업무기록 바로가기
               </Button>
-              <Typography variant="h5" sx={{ mb: 0 }}>
+              <Typography variant="h5" sx={{ mb: 0, mr: 2 }}>
                 {format(weekStart, 'yyyy년 MM월 dd일', { locale: ko })} ~ {format(weekEnd, 'MM월 dd일', { locale: ko })} 요약
               </Typography>
+              <Button variant="contained" color="success" onClick={handleExportExcel} sx={{ ml: 2 }}>
+                Excel로 내보내기
+              </Button>
             </Box>
           </Grid>
           <Grid item>
